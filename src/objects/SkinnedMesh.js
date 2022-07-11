@@ -17,6 +17,8 @@ class SkinnedMesh extends Mesh {
 
 		super( geometry, material );
 
+		this.isSkinnedMesh = true;
+
 		this.type = 'SkinnedMesh';
 
 		this.bindMode = 'attached';
@@ -25,9 +27,9 @@ class SkinnedMesh extends Mesh {
 
 	}
 
-	copy( source ) {
+	copy( source, recursive ) {
 
-		super.copy( source );
+		super.copy( source, recursive );
 
 		this.bindMode = source.bindMode;
 		this.bindMatrix.copy( source.bindMatrix );
@@ -72,10 +74,7 @@ class SkinnedMesh extends Mesh {
 
 		for ( let i = 0, l = skinWeight.count; i < l; i ++ ) {
 
-			vector.x = skinWeight.getX( i );
-			vector.y = skinWeight.getY( i );
-			vector.z = skinWeight.getZ( i );
-			vector.w = skinWeight.getW( i );
+			vector.fromBufferAttribute( skinWeight, i );
 
 			const scale = 1.0 / vector.manhattanLength();
 
@@ -123,7 +122,7 @@ class SkinnedMesh extends Mesh {
 		_skinIndex.fromBufferAttribute( geometry.attributes.skinIndex, index );
 		_skinWeight.fromBufferAttribute( geometry.attributes.skinWeight, index );
 
-		_basePosition.fromBufferAttribute( geometry.attributes.position, index ).applyMatrix4( this.bindMatrix );
+		_basePosition.copy( target ).applyMatrix4( this.bindMatrix );
 
 		target.set( 0, 0, 0 );
 
@@ -148,7 +147,5 @@ class SkinnedMesh extends Mesh {
 	}
 
 }
-
-SkinnedMesh.prototype.isSkinnedMesh = true;
 
 export { SkinnedMesh };

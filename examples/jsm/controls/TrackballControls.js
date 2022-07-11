@@ -4,7 +4,7 @@ import {
 	Quaternion,
 	Vector2,
 	Vector3
-} from '../../../build/three.module.js';
+} from 'three';
 
 const _changeEvent = { type: 'change' };
 const _startEvent = { type: 'start' };
@@ -208,7 +208,7 @@ class TrackballControls extends EventDispatcher {
 
 				} else if ( scope.object.isOrthographicCamera ) {
 
-					scope.object.zoom *= factor;
+					scope.object.zoom /= factor;
 					scope.object.updateProjectionMatrix();
 
 				} else {
@@ -412,8 +412,10 @@ class TrackballControls extends EventDispatcher {
 
 			if ( _pointers.length === 0 ) {
 
-				scope.domElement.ownerDocument.addEventListener( 'pointermove', onPointerMove );
-				scope.domElement.ownerDocument.addEventListener( 'pointerup', onPointerUp );
+				scope.domElement.setPointerCapture( event.pointerId );
+
+				scope.domElement.addEventListener( 'pointermove', onPointerMove );
+				scope.domElement.addEventListener( 'pointerup', onPointerUp );
 
 			}
 
@@ -469,8 +471,10 @@ class TrackballControls extends EventDispatcher {
 
 			if ( _pointers.length === 0 ) {
 
-				scope.domElement.ownerDocument.removeEventListener( 'pointermove', onPointerMove );
-				scope.domElement.ownerDocument.removeEventListener( 'pointerup', onPointerUp );
+				scope.domElement.releasePointerCapture( event.pointerId );
+
+				scope.domElement.removeEventListener( 'pointermove', onPointerMove );
+				scope.domElement.removeEventListener( 'pointerup', onPointerUp );
 
 			}
 
@@ -537,9 +541,6 @@ class TrackballControls extends EventDispatcher {
 						_state = STATE.PAN;
 						break;
 
-					default:
-						_state = STATE.NONE;
-
 				}
 
 			}
@@ -562,9 +563,6 @@ class TrackballControls extends EventDispatcher {
 				_panEnd.copy( _panStart );
 
 			}
-
-			scope.domElement.ownerDocument.addEventListener( 'pointermove', onPointerMove );
-			scope.domElement.ownerDocument.addEventListener( 'pointerup', onPointerUp );
 
 			scope.dispatchEvent( _startEvent );
 
@@ -594,9 +592,6 @@ class TrackballControls extends EventDispatcher {
 		function onMouseUp() {
 
 			_state = STATE.NONE;
-
-			scope.domElement.ownerDocument.removeEventListener( 'pointermove', onPointerMove );
-			scope.domElement.ownerDocument.removeEventListener( 'pointerup', onPointerUp );
 
 			scope.dispatchEvent( _endEvent );
 
@@ -706,6 +701,12 @@ class TrackballControls extends EventDispatcher {
 					_movePrev.copy( _moveCurr );
 					break;
 
+				case 2:
+					_state = STATE.TOUCH_ZOOM_PAN;
+					_moveCurr.copy( getMouseOnCircle( event.pageX - _movePrev.x, event.pageY - _movePrev.y ) );
+					_movePrev.copy( _moveCurr );
+					break;
+
 			}
 
 			scope.dispatchEvent( _endEvent );
@@ -773,6 +774,9 @@ class TrackballControls extends EventDispatcher {
 			scope.domElement.removeEventListener( 'pointerdown', onPointerDown );
 			scope.domElement.removeEventListener( 'pointercancel', onPointerCancel );
 			scope.domElement.removeEventListener( 'wheel', onMouseWheel );
+
+			scope.domElement.removeEventListener( 'pointermove', onPointerMove );
+			scope.domElement.removeEventListener( 'pointerup', onPointerUp );
 
 			window.removeEventListener( 'keydown', keydown );
 			window.removeEventListener( 'keyup', keyup );

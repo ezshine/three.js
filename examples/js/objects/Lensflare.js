@@ -8,6 +8,7 @@
 				opacity: 0,
 				transparent: true
 			} ) );
+			this.isLensflare = true;
 			this.type = 'Lensflare';
 			this.frustumCulled = false;
 			this.renderOrder = Infinity; //
@@ -15,16 +16,8 @@
 			const positionScreen = new THREE.Vector3();
 			const positionView = new THREE.Vector3(); // textures
 
-			const tempMap = new THREE.DataTexture( new Uint8Array( 16 * 16 * 3 ), 16, 16, THREE.RGBFormat );
-			tempMap.minFilter = THREE.NearestFilter;
-			tempMap.magFilter = THREE.NearestFilter;
-			tempMap.wrapS = THREE.ClampToEdgeWrapping;
-			tempMap.wrapT = THREE.ClampToEdgeWrapping;
-			const occlusionMap = new THREE.DataTexture( new Uint8Array( 16 * 16 * 3 ), 16, 16, THREE.RGBFormat );
-			occlusionMap.minFilter = THREE.NearestFilter;
-			occlusionMap.magFilter = THREE.NearestFilter;
-			occlusionMap.wrapS = THREE.ClampToEdgeWrapping;
-			occlusionMap.wrapT = THREE.ClampToEdgeWrapping; // material
+			const tempMap = new THREE.FramebufferTexture( 16, 16, THREE.RGBAFormat );
+			const occlusionMap = new THREE.FramebufferTexture( 16, 16, THREE.RGBAFormat ); // material
 
 			const geometry = Lensflare.Geometry;
 			const material1a = new THREE.RawShaderMaterial( {
@@ -240,9 +233,8 @@
 
 		}
 
-	}
+	} //
 
-	Lensflare.prototype.isLensflare = true; //
 
 	class LensflareElement {
 

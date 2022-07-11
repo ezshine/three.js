@@ -314,10 +314,14 @@ function WebGLState( gl, extensions, capabilities ) {
 	const depthBuffer = new DepthBuffer();
 	const stencilBuffer = new StencilBuffer();
 
+	const uboBindings = new WeakMap();
+	const uboProgamMap = new WeakMap();
+
 	let enabledCapabilities = {};
 
-	let xrFramebuffer = null;
 	let currentBoundFramebuffers = {};
+	let currentDrawbuffers = new WeakMap();
+	let defaultDrawbuffers = [];
 
 	let currentProgram = null;
 
@@ -428,21 +432,7 @@ function WebGLState( gl, extensions, capabilities ) {
 
 	}
 
-	function bindXRFramebuffer( framebuffer ) {
-
-		if ( framebuffer !== xrFramebuffer ) {
-
-			gl.bindFramebuffer( gl.FRAMEBUFFER, framebuffer );
-
-			xrFramebuffer = framebuffer;
-
-		}
-
-	}
-
 	function bindFramebuffer( target, framebuffer ) {
-
-		if ( framebuffer === null && xrFramebuffer !== null ) framebuffer = xrFramebuffer; // use active XR framebuffer if available
 
 		if ( currentBoundFramebuffers[ target ] !== framebuffer ) {
 
@@ -473,6 +463,82 @@ function WebGLState( gl, extensions, capabilities ) {
 		}
 
 		return false;
+
+	}
+
+	function drawBuffers( renderTarget, framebuffer ) {
+
+		let drawBuffers = defaultDrawbuffers;
+
+		let needsUpdate = false;
+
+		if ( renderTarget ) {
+
+			drawBuffers = currentDrawbuffers.get( framebuffer );
+
+			if ( drawBuffers === undefined ) {
+
+				drawBuffers = [];
+				currentDrawbuffers.set( framebuffer, drawBuffers );
+
+			}
+
+			if ( renderTarget.isWebGLMultipleRenderTargets ) {
+
+				const textures = renderTarget.texture;
+
+				if ( drawBuffers.length !== textures.length || drawBuffers[ 0 ] !== gl.COLOR_ATTACHMENT0 ) {
+
+					for ( let i = 0, il = textures.length; i < il; i ++ ) {
+
+						drawBuffers[ i ] = gl.COLOR_ATTACHMENT0 + i;
+
+					}
+
+					drawBuffers.length = textures.length;
+
+					needsUpdate = true;
+
+				}
+
+			} else {
+
+				if ( drawBuffers[ 0 ] !== gl.COLOR_ATTACHMENT0 ) {
+
+					drawBuffers[ 0 ] = gl.COLOR_ATTACHMENT0;
+
+					needsUpdate = true;
+
+				}
+
+			}
+
+		} else {
+
+			if ( drawBuffers[ 0 ] !== gl.BACK ) {
+
+				drawBuffers[ 0 ] = gl.BACK;
+
+				needsUpdate = true;
+
+			}
+
+		}
+
+		if ( needsUpdate ) {
+
+			if ( capabilities.isWebGL2 ) {
+
+				gl.drawBuffers( drawBuffers );
+
+			} else {
+
+				extensions.get( 'WEBGL_draw_buffers' ).drawBuffersWEBGL( drawBuffers );
+
+			}
+
+		}
+
 
 	}
 
@@ -578,7 +644,7 @@ function WebGLState( gl, extensions, capabilities ) {
 							break;
 
 						case SubtractiveBlending:
-							gl.blendFuncSeparate( gl.ZERO, gl.ZERO, gl.ONE_MINUS_SRC_COLOR, gl.ONE_MINUS_SRC_ALPHA );
+							gl.blendFuncSeparate( gl.ZERO, gl.ONE_MINUS_SRC_COLOR, gl.ZERO, gl.ONE );
 							break;
 
 						case MultiplyBlending:
@@ -604,7 +670,7 @@ function WebGLState( gl, extensions, capabilities ) {
 							break;
 
 						case SubtractiveBlending:
-							gl.blendFunc( gl.ZERO, gl.ONE_MINUS_SRC_COLOR );
+							gl.blendFuncSeparate( gl.ZERO, gl.ONE_MINUS_SRC_COLOR, gl.ZERO, gl.ONE );
 							break;
 
 						case MultiplyBlending:
@@ -879,6 +945,76 @@ function WebGLState( gl, extensions, capabilities ) {
 
 	}
 
+	function texSubImage2D() {
+
+		try {
+
+			gl.texSubImage2D.apply( gl, arguments );
+
+		} catch ( error ) {
+
+			console.error( 'THREE.WebGLState:', error );
+
+		}
+
+	}
+
+	function texSubImage3D() {
+
+		try {
+
+			gl.texSubImage3D.apply( gl, arguments );
+
+		} catch ( error ) {
+
+			console.error( 'THREE.WebGLState:', error );
+
+		}
+
+	}
+
+	function compressedTexSubImage2D() {
+
+		try {
+
+			gl.compressedTexSubImage2D.apply( gl, arguments );
+
+		} catch ( error ) {
+
+			console.error( 'THREE.WebGLState:', error );
+
+		}
+
+	}
+
+	function texStorage2D() {
+
+		try {
+
+			gl.texStorage2D.apply( gl, arguments );
+
+		} catch ( error ) {
+
+			console.error( 'THREE.WebGLState:', error );
+
+		}
+
+	}
+
+	function texStorage3D() {
+
+		try {
+
+			gl.texStorage3D.apply( gl, arguments );
+
+		} catch ( error ) {
+
+			console.error( 'THREE.WebGLState:', error );
+
+		}
+
+	}
+
 	function texImage2D() {
 
 		try {
@@ -926,6 +1062,47 @@ function WebGLState( gl, extensions, capabilities ) {
 
 			gl.viewport( viewport.x, viewport.y, viewport.z, viewport.w );
 			currentViewport.copy( viewport );
+
+		}
+
+	}
+
+	function updateUBOMapping( uniformsGroup, program ) {
+
+		let mapping = uboProgamMap.get( program );
+
+		if ( mapping === undefined ) {
+
+			mapping = new WeakMap();
+
+			uboProgamMap.set( program, mapping );
+
+		}
+
+		let blockIndex = mapping.get( uniformsGroup );
+
+		if ( blockIndex === undefined ) {
+
+			blockIndex = gl.getUniformBlockIndex( program, uniformsGroup.name );
+
+			mapping.set( uniformsGroup, blockIndex );
+
+		}
+
+	}
+
+	function uniformBlockBinding( uniformsGroup, program ) {
+
+		const mapping = uboProgamMap.get( program );
+		const blockIndex = mapping.get( uniformsGroup );
+
+		if ( uboBindings.get( uniformsGroup ) !== blockIndex ) {
+
+			// bind shader specific block index to global block point
+
+			gl.uniformBlockBinding( program, blockIndex, uniformsGroup.__bindingPointIndex );
+
+			uboBindings.set( uniformsGroup, blockIndex );
 
 		}
 
@@ -991,8 +1168,9 @@ function WebGLState( gl, extensions, capabilities ) {
 		currentTextureSlot = null;
 		currentBoundTextures = {};
 
-		xrFramebuffer = null;
 		currentBoundFramebuffers = {};
+		currentDrawbuffers = new WeakMap();
+		defaultDrawbuffers = [];
 
 		currentProgram = null;
 
@@ -1035,7 +1213,7 @@ function WebGLState( gl, extensions, capabilities ) {
 		disable: disable,
 
 		bindFramebuffer: bindFramebuffer,
-		bindXRFramebuffer: bindXRFramebuffer,
+		drawBuffers: drawBuffers,
 
 		useProgram: useProgram,
 
@@ -1056,6 +1234,15 @@ function WebGLState( gl, extensions, capabilities ) {
 		compressedTexImage2D: compressedTexImage2D,
 		texImage2D: texImage2D,
 		texImage3D: texImage3D,
+
+		updateUBOMapping: updateUBOMapping,
+		uniformBlockBinding: uniformBlockBinding,
+
+		texStorage2D: texStorage2D,
+		texStorage3D: texStorage3D,
+		texSubImage2D: texSubImage2D,
+		texSubImage3D: texSubImage3D,
+		compressedTexSubImage2D: compressedTexSubImage2D,
 
 		scissor: scissor,
 		viewport: viewport,

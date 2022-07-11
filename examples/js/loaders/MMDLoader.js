@@ -287,7 +287,6 @@
 	/*
 	 * base64 encoded defalut toon textures toon00.bmp - toon10.bmp.
 	 * We don't need to request external toon image files.
-	 * This idea is from http://www20.atpages.jp/katwat/three.js_r58/examples/mytest37/mmd.three.js
 	 */
 
 
@@ -960,7 +959,6 @@
 				params.emissive = new THREE.Color().fromArray( material.ambient );
 				params.transparent = params.opacity !== 1.0; //
 
-				params.morphTargets = geometry.morphTargets.length > 0 ? true : false;
 				params.fog = true; // blend
 
 				params.blending = THREE.CustomBlending;
@@ -1825,6 +1823,7 @@
 		constructor( parameters ) {
 
 			super();
+			this.isMMDToonMaterial = true;
 			this._matcapCombine = THREE.AddOperation;
 			this.emissiveIntensity = 1.0;
 			this.normalMapType = THREE.TangentSpaceNormalMap;
@@ -1865,7 +1864,7 @@
 			} );
 			this.uniforms = THREE.UniformsUtils.clone( THREE.MMDToonShader.uniforms ); // merged from MeshToon/Phong/MatcapMaterial
 
-			const exposePropertyNames = [ 'specular', 'shininess', 'opacity', 'diffuse', 'map', 'matcap', 'gradientMap', 'lightMap', 'lightMapIntensity', 'aoMap', 'aoMapIntensity', 'emissive', 'emissiveMap', 'bumpMap', 'bumpScale', 'normalMap', 'normalScale', 'displacemantBias', 'displacemantMap', 'displacemantScale', 'specularMap', 'alphaMap', 'envMap', 'reflectivity', 'refractionRatio' ];
+			const exposePropertyNames = [ 'specular', 'opacity', 'diffuse', 'map', 'matcap', 'gradientMap', 'lightMap', 'lightMapIntensity', 'aoMap', 'aoMapIntensity', 'emissive', 'emissiveMap', 'bumpMap', 'bumpScale', 'normalMap', 'normalScale', 'displacemantBias', 'displacemantMap', 'displacemantScale', 'specularMap', 'alphaMap', 'envMap', 'reflectivity', 'refractionRatio' ];
 
 			for ( const propertyName of exposePropertyNames ) {
 
@@ -1882,8 +1881,23 @@
 					}
 				} );
 
-			}
+			} // Special path for shininess to handle zero shininess properly
 
+
+			this._shininess = 30;
+			Object.defineProperty( this, 'shininess', {
+				get: function () {
+
+					return this._shininess;
+
+				},
+				set: function ( value ) {
+
+					this._shininess = value;
+					this.uniforms.shininess.value = Math.max( this._shininess, 1e-4 ); // To prevent pow( 0.0, 0.0 )
+
+				}
+			} );
 			Object.defineProperty( this, 'color', Object.getOwnPropertyDescriptor( this, 'diffuse' ) );
 			this.setValues( parameters );
 
@@ -1904,8 +1918,6 @@
 		}
 
 	}
-
-	MMDToonMaterial.prototype.isMMDToonMaterial = true;
 
 	THREE.MMDLoader = MMDLoader;
 

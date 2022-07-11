@@ -92,6 +92,7 @@ export function glconstants() {
 		POLYGON_OFFSET_FILL: 32823,
 		RGB8: 32849,
 		RGBA4: 32854,
+		RGB5_A1: 32855,
 		RGBA8: 32856,
 		TEXTURE_3D: 32879,
 		CLAMP_TO_EDGE: 33071,
@@ -100,8 +101,11 @@ export function glconstants() {
 		DEPTH_COMPONENT32F: 36012,
 		DEPTH_STENCIL_ATTACHMENT: 33306,
 		R8: 33321,
+		RG8: 33323,
 		R16F: 33325,
 		R32F: 33326,
+		RG16F: 33327,
+		RG32F: 33328,
 		UNSIGNED_SHORT_5_6_5: 33635,
 		MIRRORED_REPEAT: 33648,
 		TEXTURE0: 33984,
@@ -118,6 +122,7 @@ export function glconstants() {
 		MAX_VERTEX_ATTRIBS: 34921,
 		MAX_TEXTURE_IMAGE_UNITS: 34930,
 		ARRAY_BUFFER: 34962,
+		UNIFORM_BUFFER: 35345,
 		ELEMENT_ARRAY_BUFFER: 34963,
 		STATIC_DRAW: 35044,
 		DYNAMIC_DRAW: 35048,
@@ -125,6 +130,9 @@ export function glconstants() {
 		FRAGMENT_SHADER: 35632,
 		MAX_VERTEX_TEXTURE_IMAGE_UNITS: 35660,
 		MAX_COMBINED_TEXTURE_IMAGE_UNITS: 35661,
+		FLOAT_MAT2: 35674,
+		FLOAT_MAT3: 35675,
+		FLOAT_MAT4: 35676,
 		COMPILE_STATUS: 35713,
 		LINK_STATUS: 35714,
 		VALIDATE_STATUS: 35715,
@@ -155,7 +163,10 @@ export function glconstants() {
 		MAX_SAMPLES: 36183,
 		READ_FRAMEBUFFER: 36008,
 		DRAW_FRAMEBUFFER: 36009,
-		SAMPLE_ALPHA_TO_COVERAGE: 32926
+		SAMPLE_ALPHA_TO_COVERAGE: 32926,
+		SRGB8: 35905,
+		SRGB8_ALPHA8: 35907,
+		MAX_UNIFORM_BUFFER_BINDINGS: 35375
 	};
 
 	return {
@@ -210,7 +221,7 @@ export function glsl() {
 
 			if ( /\.glsl.js$/.test( id ) === false ) return;
 
-			code = code.replace( /\/\* glsl \*\/\`((.|\r|\n)*)\`/, function ( match, p1 ) {
+			code = code.replace( /\/\* glsl \*\/\`(.*?)\`/sg, function ( match, p1 ) {
 
 				return JSON.stringify(
 					p1
@@ -263,7 +274,7 @@ function header() {
 
 			return `/**
  * @license
- * Copyright 2010-2021 Three.js Authors
+ * Copyright 2010-2022 Three.js Authors
  * SPDX-License-Identifier: MIT
  */
 ${ code }`;
@@ -274,7 +285,22 @@ ${ code }`;
 
 }
 
-export default [
+let builds = [
+	{
+		input: 'src/Three.js',
+		plugins: [
+			addons(),
+			glconstants(),
+			glsl(),
+			header()
+		],
+		output: [
+			{
+				format: 'esm',
+				file: 'build/three.module.js'
+			}
+		]
+	},
 	{
 		input: 'src/Three.js',
 		plugins: [
@@ -294,6 +320,12 @@ export default [
 				format: 'umd',
 				name: 'THREE',
 				file: 'build/three.js',
+				indent: '\t'
+			},
+			{
+				format: 'cjs',
+				name: 'THREE',
+				file: 'build/three.cjs',
 				indent: '\t'
 			}
 		]
@@ -320,20 +352,14 @@ export default [
 				file: 'build/three.min.js'
 			}
 		]
-	},
-	{
-		input: 'src/Three.js',
-		plugins: [
-			addons(),
-			glconstants(),
-			glsl(),
-			header()
-		],
-		output: [
-			{
-				format: 'esm',
-				file: 'build/three.module.js'
-			}
-		]
 	}
 ];
+
+
+if ( process.env.ONLY_MODULE === 'true' ) {
+
+	builds = builds[ 0 ];
+
+}
+
+export default builds;

@@ -31,6 +31,8 @@ class Object3D extends EventDispatcher {
 
 		super();
 
+		this.isObject3D = true;
+
 		Object.defineProperty( this, 'id', { value: _object3DId ++ } );
 
 		this.uuid = MathUtils.generateUUID();
@@ -113,8 +115,9 @@ class Object3D extends EventDispatcher {
 
 	}
 
-	onBeforeRender() {}
-	onAfterRender() {}
+	onBeforeRender( /* renderer, scene, camera, geometry, material, group */ ) {}
+
+	onAfterRender( /* renderer, scene, camera, geometry, material, group */ ) {}
 
 	applyMatrix4( matrix ) {
 
@@ -404,6 +407,8 @@ class Object3D extends EventDispatcher {
 
 		// adds object as a child of this, while maintaining the object's world transform
 
+		// Note: This method does not support scene graphs having non-uniformly-scaled nodes(s)
+
 		this.updateWorldMatrix( true, false );
 
 		_m1.copy( this.matrixWorld ).invert();
@@ -497,7 +502,7 @@ class Object3D extends EventDispatcher {
 
 	}
 
-	raycast() {}
+	raycast( /* raycaster, intersects */ ) {}
 
 	traverse( callback ) {
 
@@ -643,7 +648,8 @@ class Object3D extends EventDispatcher {
 				images: {},
 				shapes: {},
 				skeletons: {},
-				animations: {}
+				animations: {},
+				nodes: {}
 			};
 
 			output.metadata = {
@@ -827,6 +833,7 @@ class Object3D extends EventDispatcher {
 			const shapes = extractFromCache( meta.shapes );
 			const skeletons = extractFromCache( meta.skeletons );
 			const animations = extractFromCache( meta.animations );
+			const nodes = extractFromCache( meta.nodes );
 
 			if ( geometries.length > 0 ) output.geometries = geometries;
 			if ( materials.length > 0 ) output.materials = materials;
@@ -835,6 +842,7 @@ class Object3D extends EventDispatcher {
 			if ( shapes.length > 0 ) output.shapes = shapes;
 			if ( skeletons.length > 0 ) output.skeletons = skeletons;
 			if ( animations.length > 0 ) output.animations = animations;
+			if ( nodes.length > 0 ) output.nodes = nodes;
 
 		}
 
@@ -913,9 +921,7 @@ class Object3D extends EventDispatcher {
 
 }
 
-Object3D.DefaultUp = new Vector3( 0, 1, 0 );
+Object3D.DefaultUp = /*@__PURE__*/ new Vector3( 0, 1, 0 );
 Object3D.DefaultMatrixAutoUpdate = true;
-
-Object3D.prototype.isObject3D = true;
 
 export { Object3D };
